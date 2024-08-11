@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק דמוי מונופול משודרג</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(11, 60px);
+            grid-template-rows: repeat(11, 60px);
+            gap: 2px;
+            margin-bottom: 20px;
+        }
+        .space {
+            border: 1px solid #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            text-align: center;
+            position: relative;
+        }
+        .player-flag {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            clip-path: polygon(0% 0%, 0% 100%, 50% 75%, 100% 100%, 100% 0%);
+        }
+        #player-info {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+        }
+        .player {
+            text-align: center;
+            margin: 0 10px;
+        }
+        #dice-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .dice {
+            width: 50px;
+            height: 50px;
+            background-color: white;
+            border: 2px solid black;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            margin: 0 10px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="board"></div>
+        <div id="dice-container">
+            <div id="dice1" class="dice">1</div>
+            <div id="dice2" class="dice">1</div>
+        </div>
+        <div id="player-info"></div>
+        <button onclick="nextTurn()">תור הבא</button>
+    </div>
+
+    <script>
+        const players = [
+            { name: "שחקן 1", color: "red", money: 1500, position: 0, stocks: 0 },
+            { name: "שחקן 2", color: "blue", money: 1500, position: 0, stocks: 0 },
+            { name: "שחקן 3", color: "green", money: 1500, position: 0, stocks: 0 },
+            { name: "שחקן 4", color: "yellow", money: 1500, position: 0, stocks: 0 }
+        ];
+
+        const properties = [
+            { name: "התחלה", price: 0 },
+            { name: "רחוב הרצל", price: 60 },
+            { name: "קופה קהילתית", price: 0 },
+            { name: "רחוב אלנבי", price: 60 },
+            { name: "מס הכנסה", price: 0 },
+            { name: "תחנת רכבת דרום", price: 200 },
+            { name: "שדרות רוטשילד", price: 100 },
+            { name: "מזל", price: 0 },
+            { name: "רחוב דיזנגוף", price: 100 },
+            { name: "רחוב בן יהודה", price: 120 },
+            { name: "כלא", price: 0 },
+            { name: "שדרות נורדאו", price: 140 },
+            { name: "חברת החשמל", price: 150 },
+            { name: "רחוב ארלוזורוב", price: 140 },
+            { name: "רחוב פרישמן", price: 160 },
+            { name: "תחנת רכבת מרכז", price: 200 },
+            { name: "רחוב בוגרשוב", price: 180 },
+            { name: "קופה קהילתית", price: 0 },
+            { name: "רחוב בן גוריון", price: 180 },
+            { name: "כיכר רבין", price: 200 },
+            { name: "חניה חינם", price: 0 },
+            { name: "רחוב קפלן", price: 220 },
+            { name: "מזל", price: 0 },
+            { name: "רחוב אבן גבירול", price: 220 },
+            { name: "דרך נמיר", price: 240 },
+            { name: "תחנת רכבת צפון", price: 200 },
+            { name: "שדרות חן", price: 260 },
+            { name: "רחוב פינסקר", price: 260 },
+            { name: "חברת המים", price: 150 },
+            { name: "כיכר המדינה", price: 280 },
+            { name: "לך לכלא", price: 0 },
+            { name: "שדרות ההשכלה", price: 300 },
+            { name: "דרך השלום", price: 300 },
+            { name: "קופה קהילתית", price: 0 },
+            { name: "טיילת תל אביב", price: 320 },
+            { name: "תחנת רכבת השלום", price: 200 },
+            { name: "מזל", price: 0 },
+            { name: "שדרות רוקח", price: 350 },
+            { name: "מס מותרות", price: 0 },
+            { name: "מגדלי עזריאלי", price: 400 }
+        ];
+
+        let currentPlayerIndex = 0;
+
+        function createBoard() {
+            const board = document.getElementById('board');
+            for (let i = 0; i < 40; i++) {
+                const space = document.createElement('div');
+                space.className = 'space';
+                space.textContent = properties[i].name;
+                
+                if (i < 11) {
+                    space.style.gridColumn = 11 - i;
+                    space.style.gridRow = 11;
+                } else if (i < 21) {
+                    space.style.gridColumn = 1;
+                    space.style.gridRow = 21 - i;
+                } else if (i < 31) {
+                    space.style.gridColumn = i - 19;
+                    space.style.gridRow = 1;
+                } else {
+                    space.style.gridColumn = 11;
+                    space.style.gridRow = i - 29;
+                }
+                
+                board.appendChild(space);
+            }
+        }
+
+        function updatePlayerInfo() {
+            const playerInfo = document.getElementById('player-info');
+            playerInfo.innerHTML = '';
+            players.forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player';
+                playerDiv.style.color = player.color;
+                playerDiv.innerHTML = `${player.name}<br>כסף: $${player.money}<br>מיקום: ${player.position}<br>מניות: ${player.stocks}`;
+                playerInfo.appendChild(playerDiv);
+            });
+        }
+
+        function updatePlayerPositions() {
+            const spaces = document.querySelectorAll('.space');
+            spaces.forEach(space => {
+                space.innerHTML = space.textContent; // נקה את כל הדגלים
+            });
+            players.forEach(player => {
+                const flag = document.createElement('div');
+                flag.className = 'player-flag';
+                flag.style.backgroundColor = player.color;
+                spaces[player.position].appendChild(flag);
+            });
+        }
+
+        function rollDice() {
+            const dice1 = Math.floor(Math.random() * 6) + 1;
+            const dice2 = Math.floor(Math.random() * 6) + 1;
+            document.getElementById('dice1').textContent = dice1;
+            document.getElementById('dice2').textContent = dice2;
+            return dice1 + dice2;
+        }
+
+        function buyStock(player) {
+            const stockPrice = 100;
+            if (player.money >= stockPrice) {
+                player.money -= stockPrice;
+                player.stocks++;
+                alert(`${player.name} קנה מניה במחיר $${stockPrice}`);
+            } else {
+                alert(`ל${player.name} אין מספיק כסף לקנות מניה`);
+            }
+        }
+
+        function randomEvent(player) {
+            const events = [
+                { description: "מצאת $50 ברחוב!", amount: 50 },
+                { description: "שילמת $30 על תיקון הרכב.", amount: -30 },
+                { description: "זכית בלוטו! $200 נוספו לחשבונך.", amount: 200 },
+                { description: "חשבון החשמל הגיע. שילמת $40.", amount: -40 },
+                { description: "קיבלת $100 כמתנת יום הולדת!", amount: 100 }
+            ];
+            const event = events[Math.floor(Math.random() * events.length)];
+            player.money += event.amount;
+            alert(`${player.name}: ${event.description}`);
+        }
+
+        function nextTurn() {
+            const player = players[currentPlayerIndex];
+            const diceRoll = rollDice();
+            player.position = (player.position + diceRoll) % 40;
+            const currentProperty = properties[player.position];
+
+            if (currentProperty.price > 0 && player.money >= currentProperty.price) {
+                if (confirm(`האם ברצונך לקנות את ${currentProperty.name} במחיר $${currentProperty.price}?`)) {
+                    player.money -= currentProperty.price;
+                    alert(`${player.name} קנה את ${currentProperty.name}!`);
+                }
+            } else if (currentProperty.price === 0) {
+                switch(currentProperty.name) {
+                    case "מס הכנסה":
+                    case "מס מותרות":
+                        player.money -= 100;
+                        alert(`${player.name} שילם $100 מס.`);
+                        break;
+                    case "לך לכלא":
+                        player.position = 10;
+                        alert(`${player.name} הולך לכלא!`);
+                        break;
+                    case "מזל":
+                    case "קופה קהילתית":
+                        randomEvent(player);
+                        break;
+                }
+            }
+
+            if (Math.random() < 0.3) { // 30% סיכוי לקנות מניה
+                buyStock(player);
+            }
+
+            updatePlayerInfo();
+            updatePlayerPositions();
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        }
+
+        createBoard();
+        updatePlayerInfo();
+        updatePlayerPositions();
+    </script>
+</body>
+</html>
